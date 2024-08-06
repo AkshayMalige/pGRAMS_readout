@@ -8,12 +8,12 @@ static unsigned long long u64Data, u64Data1;
 static DWORD dwOffset;
 static long imod, ichip;
 unsigned short *buffp;
-static UINT32 i, j, k, ifr, nread, iprint, iwrite, ik, il, is, checksum, writedebug;
+static UINT32 i, j, k, ifr, iprint, iwrite, ik, il, is, checksum, writedebug;
 static UINT32 istop, newcmd, irand, ioffset, kword, lastchnl, ib;
-static UINT32 read_array[dma_buffer_size], read_array1[40000], read_array_compare[40000000], read_array_1st[40000000];
+static UINT32 read_array1[40000], read_array_compare[40000000], read_array_1st[40000000];
 static UINT32 read_array_c[40000];
 static UINT32 read_comp[8000];
-static UINT32 nmask, index, itmp, nword_tot, nevent, iv, ijk, islow_read, ch;
+static UINT32 nmask, itmp, nword_tot, nevent, iv, ijk, islow_read, ch;
 static UINT32 imod_p, imod_trig, imod_shaper;
 unsigned short idcm_read_array[40000], read_array_s[1600000];
 static UINT32 idcm_read_array32[40000];
@@ -65,7 +65,21 @@ size_t stacksize;
 pthread_t threads[3];
 pthread_attr_t attr_pt_trig_dma, attr_pt_sn_dma;
 pthread_attr_t attr_pt_tr, attr_pt_sn;
+unsigned char carray[4000];
+static UINT32 send_array[40000];
 
+
+static int   idelay0, idelay1, threshold0, threshold1hg, threshold1lg, pmt_words, pmt_wordshg, pmt_wordslg;
+static int   threshold3hg, threshold3lg;
+static int   threshold1,threshold3;
+static int   cos_mult, cos_thres, beam_mult, beam_thres, en_top, en_upper, en_lower, hg, lg, lg_ch, hg_ch, trig_ch, bg_ch;
+static int   irise, ifall, istart_time, use_pmt, pmt_testpulse, pmt_precount;
+//static int   ich_head, ich_sample, ich_frm,idebug,ntot_rec,nred;
+//static int   ineu,ibusy_send,ibusy_test,ihold_word,ndma_loop;
+//static int   irawprint,ifem_fst,ifem_lst,ifem_loop;
+static int   pmt_deadtimehg,pmt_deadtimelg,pmt_mich_window,bg,bge,tre,beam_size,pmt_width;
+static int pmt_deadtime;
+ 
 unsigned char charchannel;
 struct timespec tim, tim2;
 static long tnum;
@@ -102,13 +116,13 @@ static int iter;
 
 static int imod_pmt, imod_tpc;
 int ntrans = 1;
-nread = 4096 * 2 + 6;
-ifr = 0;
-iwrite = 1;
-iprint = 0;
-icheck = 0;
-istop = 0;
-iwrited = 0;
-dwDMABufSize = 4000000;
+static int nread = 4096 * 2 + 6;
+//ifr = 0;
+//iwrite = 1;
+//iprint = 0;
+//icheck = 0;
+//istop = 0;
+//iwrited = 0;
+//dwDMABufSize = 4000000;
 
 #endif

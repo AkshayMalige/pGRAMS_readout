@@ -56,6 +56,19 @@ int main(void)
     return dwStatus;
 }
 
+enum
+{
+  MENU_MAIN_SCAN_PCI_BUS = 1,
+  MENU_MAIN_FIND_AND_OPEN,
+  MENU_MAIN_RW_ADDR,
+  MENU_MAIN_RW_CFG_SPACE,
+  MENU_MAIN_RW_REGS,
+  MENU_MAIN_ENABLE_DISABLE_INT,
+  MENU_MAIN_EVENTS,
+  MENU_MAIN_MB_TEST,     /* add new route for testing */
+  MENU_MAIN_JSEBII_TEST, /* add new route for testing */
+  MENU_MAIN_EXIT = DIAG_EXIT_MENU,
+};
 static void MenuMain(WDC_DEVICE_HANDLE *phDev, WDC_DEVICE_HANDLE *phDev2) // Main diagnostics menu
 {
     DWORD option;
@@ -189,6 +202,11 @@ static void DiagEventHandler(WDC_DEVICE_HANDLE hDev, DWORD dwAction) // Plug-and
     }
 }
 
+enum
+{
+  MENU_INT_ENABLE_DISABLE = 1,
+  MENU_INT_EXIT = DIAG_EXIT_MENU,
+};
 static void MenuInterrupts(WDC_DEVICE_HANDLE hDev) // Enable/Disable interrupts menu
 {
     DWORD option, dwIntOptions;
@@ -261,6 +279,13 @@ static void MenuInterrupts(WDC_DEVICE_HANDLE hDev) // Enable/Disable interrupts 
     } while (MENU_INT_EXIT != option);
 }
 
+enum
+{
+  MENU_RW_REGS_READ_ALL = 1,
+  MENU_RW_REGS_READ_REG,
+  MENU_RW_REGS_WRITE_REG,
+  MENU_RW_REGS_EXIT = DIAG_EXIT_MENU,
+};
 static void MenuReadWriteRegs(WDC_DEVICE_HANDLE hDev) // Display read/write run-time registers menu
 {
     DWORD option;
@@ -312,6 +337,11 @@ static void MenuReadWriteRegs(WDC_DEVICE_HANDLE hDev) // Display read/write run-
     } while (MENU_RW_REGS_EXIT != option);
 }
 
+enum
+{
+  MENU_EVENTS_REGISTER_UNREGISTER = 1,
+  MENU_EVENTS_EXIT = DIAG_EXIT_MENU,
+};
 static void MenuEvents(WDC_DEVICE_HANDLE hDev) // Register/unregister Plug-and-play and power management events
 {
     DWORD option;
@@ -359,6 +389,15 @@ static void MenuEvents(WDC_DEVICE_HANDLE hDev) // Register/unregister Plug-and-p
     } while (MENU_EVENTS_EXIT != option);
 }
 
+enum
+{
+  MENU_RW_CFG_SPACE_READ_OFFSET = 1,
+  MENU_RW_CFG_SPACE_WRITE_OFFSET,
+  MENU_RW_CFG_SPACE_READ_ALL_REGS,
+  MENU_RW_CFG_SPACE_READ_REG,
+  MENU_RW_CFG_SPACE_WRITE_REG,
+  MENU_RW_CFG_SPACE_EXIT = DIAG_EXIT_MENU,
+};
 static void MenuReadWriteCfgSpace(WDC_DEVICE_HANDLE hDev) // Display read/write configuration space menu
 {
     DWORD option;
@@ -419,93 +458,6 @@ static void MenuReadWriteCfgSpace(WDC_DEVICE_HANDLE hDev) // Display read/write 
     } while (MENU_RW_CFG_SPACE_EXIT != option);
 }
 
-static void MenuReadWriteAddr(WDC_DEVICE_HANDLE hDev) // Read/write memory or I/O space address menu
-{
-    DWORD option;
-    static DWORD dwAddrSpace = ACTIVE_ADDR_SPACE_NEEDS_INIT;
-    static WDC_ADDR_MODE mode = WDC_MODE_32;
-    static BOOL fBlock = FALSE;
-
-    /* Initialize active address space */
-    if (ACTIVE_ADDR_SPACE_NEEDS_INIT == dwAddrSpace)
-    {
-        DWORD dwNumAddrSpaces = PCIE_GetNumAddrSpaces(hDev);
-
-        /* Find the first active address space */
-        for (dwAddrSpace = 0; dwAddrSpace < dwNumAddrSpaces; dwAddrSpace++)
-        {
-            if (WDC_AddrSpaceIsActive(hDev, dwAddrSpace))
-                break;
-        }
-
-        /* Sanity check */
-        if (dwAddrSpace == dwNumAddrSpaces)
-        {
-            PCIE_ERR("MenuReadWriteAddr: Error - no active address spaces found\n");
-            dwAddrSpace = ACTIVE_ADDR_SPACE_NEEDS_INIT;
-            return;
-        }
-    }
-
-    do
-    {
-        printf("\n");
-        printf("Read/write the device's memory and IO ranges\n");
-        printf("---------------------------------------------\n");
-        printf("%d. Change active address space for read/write "
-               "(currently: BAR %ld)\n",
-               MENU_RW_ADDR_SET_ADDR_SPACE, dwAddrSpace);
-        printf("%d. Change active read/write mode (currently: %s)\n",
-               MENU_RW_ADDR_SET_MODE,
-               (WDC_MODE_8 == mode) ? "8 bit" : (WDC_MODE_16 == mode) ? "16 bit"
-                                            : (WDC_MODE_32 == mode)   ? "32 bit"
-                                                                      : "64 bit");
-        printf("%d. Toggle active transfer type (currently: %s)\n",
-               MENU_RW_ADDR_SET_TRANS_TYPE,
-               (fBlock ? "block transfers" : "non-block transfers"));
-        printf("%d. Read from active address space\n", MENU_RW_ADDR_READ);
-        printf("%d. Write to active address space\n", MENU_RW_ADDR_WRITE);
-        printf("%d. Exit menu\n", MENU_RW_ADDR_EXIT);
-        printf("\n");
-
-        if (DIAG_INPUT_FAIL == DIAG_GetMenuOption(&option,
-                                                  MENU_RW_ADDR_WRITE))
-        {
-            continue;
-        }
-
-        switch (option)
-        {
-        case MENU_RW_ADDR_EXIT: /* Exit menu */
-            break;
-        case MENU_RW_ADDR_SET_ADDR_SPACE: /* Set active address space for read/write address requests */
-        {
-            SetAddrSpace(hDev, &dwAddrSpace);
-            break;
-        }
-        case MENU_RW_ADDR_SET_MODE: /* Set active mode for read/write address requests */
-            WDC_DIAG_SetMode(&mode);
-            break;
-        case MENU_RW_ADDR_SET_TRANS_TYPE: /* Toggle active transfer type */
-            fBlock = !fBlock;
-            break;
-        case MENU_RW_ADDR_READ:  /* Read from a memory or I/O address */
-        case MENU_RW_ADDR_WRITE: /* Write to a memory or I/O address */
-        {
-            WDC_DIRECTION direction =
-                (MENU_RW_ADDR_READ == option) ? WDC_READ : WDC_WRITE;
-
-            if (fBlock)
-                WDC_DIAG_ReadWriteBlock(hDev, direction, dwAddrSpace);
-            else
-                WDC_DIAG_ReadWriteAddr(hDev, direction, dwAddrSpace, mode);
-
-            break;
-        }
-        }
-    } while (MENU_RW_ADDR_EXIT != option);
-}
-
 /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ MBTEST  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 static void MenuMBtest(WDC_DEVICE_HANDLE hDev, WDC_DEVICE_HANDLE hDev2)
 {
@@ -515,12 +467,9 @@ static void MenuMBtest(WDC_DEVICE_HANDLE hDev, WDC_DEVICE_HANDLE hDev2)
     newcmd = 1;
     mask1 = 0x0;
     mask8 = 0x2;
-    static time_t start, end;
-    struct timeval starttest18, endtest18;
-    long mytime18, seconds18, useconds18;
+    struct timeval;
     time_t rawtime;
     char timestr[500];
-    static int trig_deadtime;
     time(&rawtime);
     strftime(timestr, sizeof(timestr), "%Y_%m_%d", localtime(&rawtime));
     printf("\n ######## PMT XMIT Readout (keyboard interrupt)\n\n Enter SUBRUN NUMBER or NAME:\t");
@@ -529,6 +478,7 @@ static void MenuMBtest(WDC_DEVICE_HANDLE hDev, WDC_DEVICE_HANDLE hDev2)
     printf("\nEnter desired DMA size (<%d)\t", dwDMABufSize);
     scanf("%d", &ibytec);
     dwDMABufSize = ibytec;
+    UINT32 read_array[dwDMABufSize];
     char _buf[200];
     sprintf(_buf, "/home/ub/WinDriver/wizard/GRAMS_project_am/data/pmt/xmit_subrun_%s_%s_dma_no_1.bin", timestr, subrun);
     outf = fopen(_buf, "wb");
@@ -557,6 +507,7 @@ static void MenuMBtest(WDC_DEVICE_HANDLE hDev, WDC_DEVICE_HANDLE hDev2)
     islow_read = 0;
     iprint = 1;
     nsend = 500;
+
 
     if (iwrite == 1)
     {
@@ -624,30 +575,31 @@ static void MenuMBtest(WDC_DEVICE_HANDLE hDev, WDC_DEVICE_HANDLE hDev2)
 
     /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ XMIT BOOT  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
 
-    boot_xmit(hDev, imod_xmit);
+    boot_xmit(hDev, imod_xmit, dwDMABufSize);
     printf("\nDo you want to read out TPC or PMT? Enter 0 for TPC, 1 for PMT, 2 for both\n");
     scanf("%i", &readtype);
 
     /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ XMIT SETTUP  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
 
-    setup_xmit(hDev, imod_xmit);
+    setup_xmit(hDev, imod_xmit, dwDMABufSize);
 
     /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ FEM BOOT  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
+    bool fem_type = true;
 
     boot_fems(hDev, imod_xmit, imod_st, fem_type);
 
     /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ FEM SETTUP  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
 
-    setup_fems(hDev, fem_slot, true);  // TPC
-    setup_fems(hDev, fem_slot, false); // PMT
+    setup_fems(hDev, imod_tpc, true, outinfo, dwDMABufSize);  // TPC
+    setup_fems(hDev, imod_pmt, false, outinfo, dwDMABufSize); // PMT
 
     /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ TRIGGER_SETUP  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
 
-    setup_trig(hDev, trig_slot, fem_type)
+    setup_trig(hDev, imod_trig, fem_type);
 
     /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ TRIGGER_SETUP  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
 
-    link_fems(hDev, trig_slot, fem_type)
+    link_fems(hDev, imod_trig, fem_type, dwDMABufSize);
 
     /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ DMA & EB  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
 }
