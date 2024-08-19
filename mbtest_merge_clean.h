@@ -18,7 +18,9 @@
 #include "pcie_lib.h"
 #include <stdbool.h>
 #include <stdint.h>
+
 #include "mbtest_dec.h"
+
 #define ACTIVE_ADDR_SPACE_NEEDS_INIT 0xFF
 #define PCIE_ERR printf
 #define PCIE_REGS_NUM 0
@@ -300,14 +302,14 @@ static void DiagEventHandler(WDC_DEVICE_HANDLE hDev, DWORD dwAction);
 static int pcie_send(WDC_DEVICE_HANDLE hDev, int mode, int nword, UINT32 *buff_send);
 static int pcie_rec(WDC_DEVICE_HANDLE hDev, int mode, int istart, int nword, int ipr_status, UINT32 *buff_rec);
 static int power(int a, int b); // enable/disable channels
-static void boot_xmit(WDC_DEVICE_HANDLE *hDev, int imod_xmit_in, int dmabufsize);
-static void setup_xmit(WDC_DEVICE_HANDLE *hDev, int imod_xmit_in, int dmabufsize);
-static int boot_fems(WDC_DEVICE_HANDLE hDev, int imod_xmit_in, int imod_st, bool fem_type);
-static int setup_fems(WDC_DEVICE_HANDLE hDev, int fem_slot, bool fem_type, FILE * outfile, int dmabufsize);
-static int setup_tpc_fem(WDC_DEVICE_HANDLE hDev, int fem_slot, bool fem_type);
+static void boot_xmit(WDC_DEVICE_HANDLE *hDev, int imod_xmit_in, int dmabufsize, bool print_debug);
+static void setup_xmit(WDC_DEVICE_HANDLE *hDev, int imod_xmit_in, int dmabufsize, bool print_debug);
+static int boot_fems(WDC_DEVICE_HANDLE hDev, int imod_xmit_in, int imod_st, bool fem_type, bool print_debug);
+static int setup_fems(WDC_DEVICE_HANDLE hDev, int imod_xmit, int imod_st, int fem_slot, bool fem_type, FILE *outfile, int dmabufsize);
+static int setup_tpc_fem(WDC_DEVICE_HANDLE hDev, int imod_xmit, int imod_st, int fem_slot, bool fem_type);
 static int setup_pmt_fem(WDC_DEVICE_HANDLE hDev, int imod_fem, int iframe_length, int mode, FILE *outinfo, int dmabufsize);
-static int setup_trig(WDC_DEVICE_HANDLE hDev, int trig_slot, bool fem_type);
-static int link_fems(WDC_DEVICE_HANDLE hDev, int trig_slot, bool fem_type, int dmabufsize);
+static int setup_trig(WDC_DEVICE_HANDLE hDev, int trig_slot);
+static int link_fems(WDC_DEVICE_HANDLE hDev, int imod_xmit, int imod_st, int dmabufsize);
 
 /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ FUNTIONS ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
 static WDC_DEVICE_HANDLE DeviceFindAndOpen(DWORD dwVendorId, DWORD dwDeviceId)
@@ -828,89 +830,89 @@ enum
 };
 static void MenuReadWriteAddr(WDC_DEVICE_HANDLE hDev) // Read/write memory or I/O space address menu
 {
-    DWORD option;
-    static DWORD dwAddrSpace = ACTIVE_ADDR_SPACE_NEEDS_INIT;
-    static WDC_ADDR_MODE mode = WDC_MODE_32;
-    static BOOL fBlock = FALSE;
+  DWORD option;
+  static DWORD dwAddrSpace = ACTIVE_ADDR_SPACE_NEEDS_INIT;
+  static WDC_ADDR_MODE mode = WDC_MODE_32;
+  static BOOL fBlock = FALSE;
 
-    /* Initialize active address space */
-    if (ACTIVE_ADDR_SPACE_NEEDS_INIT == dwAddrSpace)
+  /* Initialize active address space */
+  if (ACTIVE_ADDR_SPACE_NEEDS_INIT == dwAddrSpace)
+  {
+    DWORD dwNumAddrSpaces = PCIE_GetNumAddrSpaces(hDev);
+
+    /* Find the first active address space */
+    for (dwAddrSpace = 0; dwAddrSpace < dwNumAddrSpaces; dwAddrSpace++)
     {
-        DWORD dwNumAddrSpaces = PCIE_GetNumAddrSpaces(hDev);
-
-        /* Find the first active address space */
-        for (dwAddrSpace = 0; dwAddrSpace < dwNumAddrSpaces; dwAddrSpace++)
-        {
-            if (WDC_AddrSpaceIsActive(hDev, dwAddrSpace))
-                break;
-        }
-
-        /* Sanity check */
-        if (dwAddrSpace == dwNumAddrSpaces)
-        {
-            PCIE_ERR("MenuReadWriteAddr: Error - no active address spaces found\n");
-            dwAddrSpace = ACTIVE_ADDR_SPACE_NEEDS_INIT;
-            return;
-        }
+      if (WDC_AddrSpaceIsActive(hDev, dwAddrSpace))
+        break;
     }
 
-    do
+    /* Sanity check */
+    if (dwAddrSpace == dwNumAddrSpaces)
     {
-        printf("\n");
-        printf("Read/write the device's memory and IO ranges\n");
-        printf("---------------------------------------------\n");
-        printf("%d. Change active address space for read/write "
-               "(currently: BAR %ld)\n",
-               MENU_RW_ADDR_SET_ADDR_SPACE, dwAddrSpace);
-        printf("%d. Change active read/write mode (currently: %s)\n",
-               MENU_RW_ADDR_SET_MODE,
-               (WDC_MODE_8 == mode) ? "8 bit" : (WDC_MODE_16 == mode) ? "16 bit"
-                                            : (WDC_MODE_32 == mode)   ? "32 bit"
-                                                                      : "64 bit");
-        printf("%d. Toggle active transfer type (currently: %s)\n",
-               MENU_RW_ADDR_SET_TRANS_TYPE,
-               (fBlock ? "block transfers" : "non-block transfers"));
-        printf("%d. Read from active address space\n", MENU_RW_ADDR_READ);
-        printf("%d. Write to active address space\n", MENU_RW_ADDR_WRITE);
-        printf("%d. Exit menu\n", MENU_RW_ADDR_EXIT);
-        printf("\n");
+      PCIE_ERR("MenuReadWriteAddr: Error - no active address spaces found\n");
+      dwAddrSpace = ACTIVE_ADDR_SPACE_NEEDS_INIT;
+      return;
+    }
+  }
 
-        if (DIAG_INPUT_FAIL == DIAG_GetMenuOption(&option,
-                                                  MENU_RW_ADDR_WRITE))
-        {
-            continue;
-        }
+  do
+  {
+    printf("\n");
+    printf("Read/write the device's memory and IO ranges\n");
+    printf("---------------------------------------------\n");
+    printf("%d. Change active address space for read/write "
+           "(currently: BAR %ld)\n",
+           MENU_RW_ADDR_SET_ADDR_SPACE, dwAddrSpace);
+    printf("%d. Change active read/write mode (currently: %s)\n",
+           MENU_RW_ADDR_SET_MODE,
+           (WDC_MODE_8 == mode) ? "8 bit" : (WDC_MODE_16 == mode) ? "16 bit"
+                                        : (WDC_MODE_32 == mode)   ? "32 bit"
+                                                                  : "64 bit");
+    printf("%d. Toggle active transfer type (currently: %s)\n",
+           MENU_RW_ADDR_SET_TRANS_TYPE,
+           (fBlock ? "block transfers" : "non-block transfers"));
+    printf("%d. Read from active address space\n", MENU_RW_ADDR_READ);
+    printf("%d. Write to active address space\n", MENU_RW_ADDR_WRITE);
+    printf("%d. Exit menu\n", MENU_RW_ADDR_EXIT);
+    printf("\n");
 
-        switch (option)
-        {
-        case MENU_RW_ADDR_EXIT: /* Exit menu */
-            break;
-        case MENU_RW_ADDR_SET_ADDR_SPACE: /* Set active address space for read/write address requests */
-        {
-            SetAddrSpace(hDev, &dwAddrSpace);
-            break;
-        }
-        case MENU_RW_ADDR_SET_MODE: /* Set active mode for read/write address requests */
-            WDC_DIAG_SetMode(&mode);
-            break;
-        case MENU_RW_ADDR_SET_TRANS_TYPE: /* Toggle active transfer type */
-            fBlock = !fBlock;
-            break;
-        case MENU_RW_ADDR_READ:  /* Read from a memory or I/O address */
-        case MENU_RW_ADDR_WRITE: /* Write to a memory or I/O address */
-        {
-            WDC_DIRECTION direction =
-                (MENU_RW_ADDR_READ == option) ? WDC_READ : WDC_WRITE;
+    if (DIAG_INPUT_FAIL == DIAG_GetMenuOption(&option,
+                                              MENU_RW_ADDR_WRITE))
+    {
+      continue;
+    }
 
-            if (fBlock)
-                WDC_DIAG_ReadWriteBlock(hDev, direction, dwAddrSpace);
-            else
-                WDC_DIAG_ReadWriteAddr(hDev, direction, dwAddrSpace, mode);
+    switch (option)
+    {
+    case MENU_RW_ADDR_EXIT: /* Exit menu */
+      break;
+    case MENU_RW_ADDR_SET_ADDR_SPACE: /* Set active address space for read/write address requests */
+    {
+      SetAddrSpace(hDev, &dwAddrSpace);
+      break;
+    }
+    case MENU_RW_ADDR_SET_MODE: /* Set active mode for read/write address requests */
+      WDC_DIAG_SetMode(&mode);
+      break;
+    case MENU_RW_ADDR_SET_TRANS_TYPE: /* Toggle active transfer type */
+      fBlock = !fBlock;
+      break;
+    case MENU_RW_ADDR_READ:  /* Read from a memory or I/O address */
+    case MENU_RW_ADDR_WRITE: /* Write to a memory or I/O address */
+    {
+      WDC_DIRECTION direction =
+          (MENU_RW_ADDR_READ == option) ? WDC_READ : WDC_WRITE;
 
-            break;
-        }
-        }
-    } while (MENU_RW_ADDR_EXIT != option);
+      if (fBlock)
+        WDC_DIAG_ReadWriteBlock(hDev, direction, dwAddrSpace);
+      else
+        WDC_DIAG_ReadWriteAddr(hDev, direction, dwAddrSpace, mode);
+
+      break;
+    }
+    }
+  } while (MENU_RW_ADDR_EXIT != option);
 }
 
 static int power(int a, int b)
@@ -946,14 +948,16 @@ static void changemode(int dir)
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
 }
 
-static void boot_xmit(WDC_DEVICE_HANDLE *hDev, int imod_xmit_in, int dmabufsize)
+static void boot_xmit(WDC_DEVICE_HANDLE *hDev, int imod_xmit_in, int dmabufsize, bool print_debug)
 {
+
+  printf("$$$$$ boot_xmit dmabufsize %i\n", dmabufsize);
 
   ichip = 0x2;
   buf_send[0] = 0x0;
   buf_send[1] = 0x0;
   px = &buf_send[0];
-  UINT32 read_array[dmabufsize]; 
+  UINT32 read_array[dmabufsize];
 
   inpf = fopen("/home/ub/WinDriver/wizard/GRAMS_project_am/uBooNE_Nominal_Firmware/xmit/readcontrol_110601_v3_play_header_hist_l1block_9_21_2018.rbf", "r"); // tpc readout akshay
   // inpf = fopen("/home/ub/WinDriver/wizard/GRAMS_project_am/uBooNE_Nominal_Firmware/xmit/readcontrol_11601_v3_play_header_6_21_2013.rbf", "r");//tpc readout akshay
@@ -974,6 +978,14 @@ static void boot_xmit(WDC_DEVICE_HANDLE *hDev, int imod_xmit_in, int dmabufsize)
   nword = 1;
   imod = imod_xmit_in;
   dummy1 = 0;
+
+  if (print_debug == true)
+  {
+    printf("\n boot_xmit debug : \n");
+    printf("dmabufsize %x\n", dmabufsize);
+    printf("imod_xmit_in %x\n", imod_xmit_in);
+    printf("mb_xmit_conf_add %x\n", mb_xmit_conf_add);
+  }
 
   while (fread(&charchannel, sizeof(char), 1, inpf) == 1)
   {
@@ -1057,7 +1069,7 @@ static void boot_xmit(WDC_DEVICE_HANDLE *hDev, int imod_xmit_in, int dmabufsize)
   printf("XMIT status word = %x, %x \n", read_array[0], read_array[1]);
 }
 
-static void setup_xmit(WDC_DEVICE_HANDLE *hDev, int imod_xmit_in, int dmabufsize)
+static void setup_xmit(WDC_DEVICE_HANDLE *hDev, int imod_xmit_in, int dmabufsize, bool print_debug)
 {
 
   UINT32 read_array[dmabufsize];
@@ -1136,9 +1148,25 @@ static void setup_xmit(WDC_DEVICE_HANDLE *hDev, int imod_xmit_in, int dmabufsize
   printf("XMIT status word = %x, %x \n", read_array[0], read_array[1]);
   usleep(10000);
   printf("\n...XMIT setup complete\n");
+
+  if (print_debug == true)
+  {
+    printf("\n setup_xmit debug : \n");
+    printf("dmabufsize %x\n", dmabufsize);
+    printf("imod_xmit_in %x\n", imod_xmit_in);
+    printf("mb_xmit_modcount %x\n", mb_xmit_modcount);
+    printf("mb_opt_dig_reset %x\n", mb_opt_dig_reset);
+    printf("mb_xmit_enable_1 %x\n", mb_xmit_enable_1);
+    printf("mb_xmit_link_pll_reset %x\n", mb_xmit_link_pll_reset);
+    printf("mb_xmit_link_reset %x\n", mb_xmit_link_reset);
+    printf("mb_xmit_dpa_fifo_reset %x\n", mb_xmit_dpa_fifo_reset);
+    printf("mb_xmit_dpa_word_align %x\n", mb_xmit_dpa_word_align);
+    printf("mb_xmit_rdstatus %x\n", mb_xmit_rdstatus);
+    printf("mb_xmit_rdstatus %x\n", mb_xmit_rdstatus);
+  }
 }
 
-static int boot_fems(WDC_DEVICE_HANDLE hDev, int imod_xmit_in, int imod_st, bool fem_type)
+static int boot_fems(WDC_DEVICE_HANDLE hDev, int imod_xmit_in, int imod_st, bool fem_type, bool print_debug)
 {
 
   printf("\n\nBooting FEBs...\n");
@@ -1155,10 +1183,9 @@ static int boot_fems(WDC_DEVICE_HANDLE hDev, int imod_xmit_in, int imod_st, bool
     k = 1;
     i = pcie_send(hDev, i, k, px);
     usleep(200000); // wait for 200 ms
-    FILE * inpf_tpc = fopen("/home/ub/WinDriver/wizard/GRAMS_project_am/uBooNE_Nominal_Firmware/fem/module1x_140820_deb_fixbase_nf_8_31_2018.rbf", "r");
-    FILE * inpf_pmt = fopen("/home/ub/WinDriver/wizard/GRAMS_project/uBooNE_Nominal_Firmware/pmt_fem/module1x_pmt_64MHz_new_head_07162013.rbf", "r");
+    FILE *inpf_tpc = fopen("/home/ub/WinDriver/wizard/GRAMS_project_am/uBooNE_Nominal_Firmware/fem/module1x_140820_deb_fixbase_nf_8_31_2018.rbf", "r");
+    FILE *inpf_pmt = fopen("/home/ub/WinDriver/wizard/GRAMS_project/uBooNE_Nominal_Firmware/pmt_fem/module1x_pmt_64MHz_new_head_07162013.rbf", "r");
     inpf = fem_type ? inpf_tpc : inpf_pmt;
-
     ichip = mb_feb_conf_add;                                       // ichip=mb_feb_config_add(=2) is for configuration chip
     buf_send[0] = (imod << 11) + (ichip << 8) + 0x0 + (0x0 << 16); // turn conf to be on
     i = 1;
@@ -1242,21 +1269,31 @@ static int boot_fems(WDC_DEVICE_HANDLE hDev, int imod_xmit_in, int imod_st, bool
     fclose(inpf);
     printf(" Configuration for module in slot %d COMPLETE.\n", imod);
   }
+
+  if (print_debug == true)
+  {
+    printf("\n fem boot debug : \n\n");
+    printf("hDev %x\n", &hDev);
+    printf("imod_fem %x\n", imod_fem);
+    printf("imod_xmit_in %x\n", imod_xmit_in);
+    printf("mb_feb_power_add %x\n", mb_feb_power_add);
+    printf("mb_feb_conf_add %x\n", mb_feb_conf_add);
+  }
   printf("\n...FEB booting done \n");
 }
 
-static int setup_fems(WDC_DEVICE_HANDLE hDev, int fem_slot, bool fem_type, FILE* outfile, int dmabufsize)
+static int setup_fems(WDC_DEVICE_HANDLE hDev, int imod_xmit, int imod_st, int fem_slot, bool fem_type, FILE *outfile, int dmabufsize)
 {
-  bool fem_set_done = fem_type ? setup_tpc_fem(hDev, fem_slot, fem_type) : setup_pmt_fem(hDev, fem_slot, fem_type, 1, outfile, dmabufsize);
+  bool fem_set_done = fem_type ? setup_tpc_fem(hDev, imod_xmit, imod_st, fem_slot, fem_type) : setup_pmt_fem(hDev, fem_slot, fem_type, 1599, outfile, dmabufsize);
   printf("FEM in slot %i setup complete", fem_slot);
   return 0;
 }
 
-static int setup_tpc_fem(WDC_DEVICE_HANDLE hDev, int fem_slot, bool fem_type)
+static int setup_tpc_fem(WDC_DEVICE_HANDLE hDev, int imod_xmit, int imod_st, int fem_slot, bool fem_type)
 {
-  int adcdata=1;
-  int fakeadcdata=0;
-  int femfakedata=0;
+  int adcdata = 1;
+  int fakeadcdata = 0;
+  int femfakedata = 0;
   printf("\nSetting up TPC FEB's...\n");
   for (imod_fem = (imod_xmit + 1); imod_fem < (imod_st + 1); imod_fem++)
   {
@@ -1618,7 +1655,11 @@ static int setup_pmt_fem(WDC_DEVICE_HANDLE hDev, int imod_fem, int iframe_length
   fprintf(outinfo, "pmt_words BG,TRIG channels = %d\n", pmt_words);
 
   /* boot was here */
-
+  printf("mb_feb_pmt_precount %x\n", mb_feb_pmt_precount);
+  printf("mb_feb_pmt_delay1 %x\n", mb_feb_pmt_delay1);
+  printf("mb_feb_pmt_delay0 %x\n", mb_feb_pmt_delay0);
+  printf("mb_feb_pmt_ch_set %x\n", mb_feb_pmt_ch_set);
+ 
   for (ik = 0; ik < 40; ik++)
   {
 
@@ -1980,7 +2021,7 @@ static int setup_pmt_fem(WDC_DEVICE_HANDLE hDev, int imod_fem, int iframe_length
   return 0;
 }
 
-static int setup_trig(WDC_DEVICE_HANDLE hDev, int trig_slot, bool fem_type)
+static int setup_trig(WDC_DEVICE_HANDLE hDev, int trig_slot)
 {
 
   /* FROM TPC PART*/
@@ -2038,7 +2079,7 @@ static int setup_trig(WDC_DEVICE_HANDLE hDev, int trig_slot, bool fem_type)
   return 0;
 }
 
-static int link_fems(WDC_DEVICE_HANDLE hDev, int trig_slot, bool fem_type, int dmabufsize)
+static int link_fems(WDC_DEVICE_HANDLE hDev, int imod_xmit, int imod_st, int dmabufsize)
 {
 
   UINT32 read_array[dmabufsize];
@@ -2146,4 +2187,46 @@ static int link_fems(WDC_DEVICE_HANDLE hDev, int trig_slot, bool fem_type, int d
   return 0;
 }
 
+/*
+void checkAndPrintNull() {
+    // Base case does nothing
+}
+
+// Check if a raw pointer is null
+template <typename T>
+void checkAndPrintNull(T* ptr) {
+    if (ptr == nullptr) {
+        std::cout << "Null pointer detected." << std::endl;
+    }
+}
+
+// Check if a unique_ptr is null
+template <typename T>
+void checkAndPrintNull(const std::unique_ptr<T>& ptr) {
+    if (!ptr) {
+        std::cout << "Null unique_ptr detected." << std::endl;
+    }
+}
+
+// Check if a shared_ptr is null
+template <typename T>
+void checkAndPrintNull(const std::shared_ptr<T>& ptr) {
+    if (!ptr) {
+        std::cout << "Null shared_ptr detected." << std::endl;
+    }
+}
+
+// Generic case for other types
+template <typename T>
+void checkAndPrintNull(const T&) {
+    // No check for other types, as they cannot be null
+}
+
+// Recursive variadic template function to check each argument
+template <typename First, typename... Args>
+void checkAndPrintNull(const First& first, const Args&... args) {
+    checkAndPrintNull(first);
+    checkAndPrintNull(args...);
+}
+*/
 #endif

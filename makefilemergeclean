@@ -51,6 +51,8 @@ endif
 CFLAGS += -DLINUX $(DEBFLAGS) -Wall -I$(WD_BASEDIR)/include -I$(WD_BASEDIR) -I/home/ub/WinDriver/wizard/GRAMS_project_am/pGRAMS_readout
 CFLAGS += -DWD_DRIVER_NAME_CHANGE
 LFLAGS += -lwdapi1021
+#CXX = g++
+#CXXFLAGS = -std=c++14 -Wall -Wextra -pedantic
 # need also thread support for interrupt handling
 LFLAGS += -lpthread
 

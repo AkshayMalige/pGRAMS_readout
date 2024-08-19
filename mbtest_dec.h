@@ -44,6 +44,7 @@ static int irise, ifall, istart_time, use_pmt, pmt_testpulse;
 static int ich_head, ich_sample, ich_frm, idebug, ntot_rec, nred;
 static int ineu, ibusy_send, ibusy_test, ihold_word, ndma_loop;
 static int irawprint, nwrite_byte, idis_c, idis_c1;
+
 static int icomp_index, nword_comp, nk, ilast_check;
 static int ic_ev, ic_fr, event_save, frame_save, frame_ev, event_ev;
 static int imod_fem, imod_st, imod_last, itrig_type, last_dma_loop_size;
@@ -117,12 +118,12 @@ static int iter;
 static int imod_pmt, imod_tpc;
 int ntrans = 1;
 static int nread = 4096 * 2 + 6;
-//ifr = 0;
-//iwrite = 1;
-//iprint = 0;
-//icheck = 0;
-//istop = 0;
-//iwrited = 0;
-//dwDMABufSize = 4000000;
+ifr = 0;
+iwrite = 1;
+iprint = 0;
+icheck = 0;
+istop = 0;
+iwrited = 0;
+dwDMABufSize = 4000000;
 
 #endif
