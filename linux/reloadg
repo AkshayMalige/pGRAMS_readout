@@ -1,0 +1,2 @@
+/sbin/rmmod windrvr1630
+/home/pgrams/WD1630LNX86_64/redist/wdreg /dev/windrvr1630 auto

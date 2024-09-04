@@ -1,0 +1,35 @@
+The DriverWizard has created:
+* A sample diagnostics application for testing the communication with
+  your hardware from the user mode.
+* Library files, which include API for controlling your hardware.
+
+  /home/pgrams/WD1630LNX86_64/wizard/my_projects/pgrams/pgrams_installation/redist
+         The redistribution package files will reside in this folder
+
+  /home/pgrams/WD1630LNX86_64/wizard/my_projects/pgrams/pgrams_installation/lib
+         The library files will reside in this folder
+
+  /home/pgrams/WD1630LNX86_64/wizard/my_projects/pgrams/pgrams_files.txt
+         A detailed overview of all the generated files.
+
+  /home/pgrams/WD1630LNX86_64/wizard/my_projects/pgrams/pgrams_lib.h
+         A library for controlling your hardware through WinDriver.
+
+  /home/pgrams/WD1630LNX86_64/wizard/my_projects/pgrams/pgrams_lib.c
+         Contains the implementation of the functions used for
+         accessing each of the resources defined in the Wizard.
+
+  /home/pgrams/WD1630LNX86_64/wizard/my_projects/pgrams/pgrams_diag.c
+         The sample user-mode application that diagnoses your
+         hardware using the pgrams_lib.c library.
+
+  /home/pgrams/WD1630LNX86_64/wizard/my_projects/pgrams/linux/makefile
+         Linux makefile.
+
+Compiling this project:
+  For Linux, run  - "make -C linux"
+
+Converting to a GUI application:
+  This sample was written as a console mode application (rather than
+  a GUI application) that uses standard input and standard output.
+  This was done in order to simplify the source code.
