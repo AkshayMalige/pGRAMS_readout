@@ -75,6 +75,7 @@ typedef void (*PGRAMS_EVENT_HANDLER)(WDC_DEVICE_HANDLE hDev, DWORD dwAction);
 
 typedef struct MENU_CTX_DMA {
     WDC_DEVICE_HANDLE *phDev;
+    WDC_DEVICE_HANDLE *phDev2;
     DWORD size;
     DWORD dwOptions;
     UINT64 qwAddr;

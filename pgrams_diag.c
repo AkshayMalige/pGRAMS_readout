@@ -231,20 +231,49 @@ static void MenuRwRegsInit(DIAG_MENU_OPTION *pParentMenu,
 
 static void pGRAMS_Menu(DIAG_MENU_OPTION *pParentMenu, WDC_DEVICE_HANDLE *phDev, WDC_DEVICE_HANDLE *phDev2);
 static void MenupGRAMSSubMenusInit(DIAG_MENU_OPTION *pParentMenu, MENU_CTX_DMA *pDmaSubMenusCtx);
-static void MenuFirstpGRAMS();
+static unsigned int MenuFirstpGRAMS(void *pCbCtx);
+
+
+typedef struct {
+    WDC_DEVICE_HANDLE *phDev;
+    WDC_DEVICE_HANDLE *phDev2;
+} MENU_CTX_DEVICES;
+
+
 /*************************************************************
   Functions implementation
  *************************************************************/
-static void MenuFirstpGRAMS(){
-    PGRAMS_TRACE("print from first menu");
+static unsigned int MenuFirstpGRAMS(PVOID pCbCtx){
+    // WDC_DEVICE_HANDLE phDev = *(WDC_DEVICE_HANDLE *)pCbCtx;
+    // WDC_DEVICE_HANDLE phDev2 = *(WDC_DEVICE_HANDLE *)pCbCtx;
+
+    MENU_CTX_DEVICES *pDevicesCtx = (MENU_CTX_DEVICES *)pCbCtx;  
+    WDC_DEVICE_HANDLE phDev = pDevicesCtx->phDev;
+    WDC_DEVICE_HANDLE phDev2 = pDevicesCtx->phDev2;
+
+    PGRAMS_TRACE("\n print from first menu with handle \n");
+    PGRAMS_TRACE("\nMenuFirstpGRAMS 1 :%x\n", phDev);
+    PGRAMS_TRACE("\nMenuFirstpGRAMS 2 :%x\n", phDev2);
+
+    return 0;
 }
 
 static void MenupGRAMSSubMenusInit(DIAG_MENU_OPTION *pParentMenu, MENU_CTX_DMA *pDmaSubMenusCtx)
 {
     static DIAG_MENU_OPTION first_option = { 0 };
     static DIAG_MENU_OPTION options[1] = { 0 };
+    static MENU_CTX_DEVICES devicesCtx = { 0 };
+
+    devicesCtx.phDev = pDmaSubMenusCtx->phDev;
+    devicesCtx.phDev2 = pDmaSubMenusCtx->phDev2;
+
     strcpy(first_option.cOptionName, "SubMenu 0");
     first_option.cbEntry = MenuFirstpGRAMS;
+    first_option.pCbCtx = &devicesCtx;
+
+    PGRAMS_TRACE("\n MenupGRAMSSubMenusInit 1 :%x \n", pDmaSubMenusCtx->phDev);  
+    PGRAMS_TRACE("\n MenupGRAMSSubMenusInit 2 :%x \n\n", pDmaSubMenusCtx->phDev2);      
+    
     options[0] = first_option;
     DIAG_MenuSetCtxAndParentForMenus(options, OPTIONS_SIZE(options), pDmaSubMenusCtx, pParentMenu);
 }
@@ -257,8 +286,11 @@ static void pGRAMS_Menu(DIAG_MENU_OPTION *pParentMenu, WDC_DEVICE_HANDLE *phDev,
     strcpy(dmaMenuOption.cOptionName, "pGRAMS_Menu");
     strcpy(dmaMenuOption.cTitleName, "pGRAMS_Menu");
 
+    PGRAMS_TRACE("\n pGRAMS_Menu 1 :%x", phDev);
+    PGRAMS_TRACE("\n pGRAMS_Menu 2 :%x\n", phDev2);
+
     dmaMenusCtx.phDev = phDev;
-    dmaMenusCtx.phDev = phDev2;
+    dmaMenusCtx.phDev2 = phDev2;
     dmaMenusCtx.pDma = NULL;
     dmaMenusCtx.pBuf = NULL;
     dmaMenusCtx.dwDmaAddressWidth = 0;
@@ -481,8 +513,7 @@ static void MenuDeviceOpenInit(DIAG_MENU_OPTION *pParentMenu,
     strcpy(menuDeviceOpen.cOptionName, "Find and open a PCI device");
     menuDeviceOpen.cbEntry = MenuDeviceOpenCb;
 
-    DIAG_MenuSetCtxAndParentForMenus(&menuDeviceOpen, 1, phDev,
-        pParentMenu);
+    DIAG_MenuSetCtxAndParentForMenus(&menuDeviceOpen, 1, phDev, pParentMenu);
 }
 
 /* -----------------------------------------------
