@@ -55,7 +55,7 @@ LFLAGS += -lpthread
 TARGET = pgrams
 SRCS = ../pgrams_diag.c ../pgrams_lib.c $(WD_BASEDIR)/samples/c/shared/diag_lib.c $(WD_BASEDIR)/samples/c/shared/wdc_diag_lib.c $(WD_BASEDIR)/samples/c/shared/wds_diag_lib.c $(WD_BASEDIR)/samples/c/shared/pci_menus_common.c
 
-LD = gcc
+LD = g++
 
 OD = ./
 OBJS = $(addsuffix .o, $(addprefix $(OD)/, $(basename $(notdir $(SRCS)))))
