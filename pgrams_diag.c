@@ -2854,14 +2854,13 @@ static void MenuMBtest(WDC_DEVICE_HANDLE hDev, WDC_DEVICE_HANDLE hDev2)
     icont = 1;
     iwrite = 1;     // grams
     writedebug = 1; // see docdb-2819 for hardware config details
-    imod_xmit = 6;  // 10;
-    imod_pmt = 8;
-    imod_st1 = 8;
-    imod_st2 = 7;
-
-    imod_tpc = 7;
-    imod_trig = 16;  // 16;
-    imod_shaper = 4; // 6;
+    imod_xmit = 15;  // 10;
+    imod_pmt = 17;
+    imod_st1 = 17;
+    imod_st2 = 16;
+    imod_tpc = 16;
+    imod_trig = 19;  // 16;
+    imod_shaper = 14; // 6;
     iframe_length = 1599;
     iframe = iframe_length;
     itrig_delay = 10; // 10
