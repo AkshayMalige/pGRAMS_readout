@@ -2849,7 +2849,7 @@ static void MenuMBtest(WDC_DEVICE_HANDLE hDev, WDC_DEVICE_HANDLE hDev2)
     sprintf(_buf, "../data/xmit_subrun_%s_%s.info", timestr, subrun);
     outinfo = fopen(_buf, "w");
 
-    idebug = 1;
+    idebug = 0;
     irawprint = 0;
     icont = 1;
     iwrite = 1;     // grams
@@ -2864,7 +2864,7 @@ static void MenuMBtest(WDC_DEVICE_HANDLE hDev, WDC_DEVICE_HANDLE hDev2)
     iframe_length = 1599;
     iframe = iframe_length;
     itrig_delay = 10; // 10
-    timesize = 209;
+    timesize = 199;
     icheck = 0;
     ifr = 0;
     irand = 0;
@@ -3027,7 +3027,6 @@ static void MenuMBtest(WDC_DEVICE_HANDLE hDev, WDC_DEVICE_HANDLE hDev2)
         i = 1;
         i = pcie_send(hDev, i, nword, px);
     }
-
     usleep(2000); // wait for 2ms to cover the packet time plus fpga init time
     fclose(inpf);
 
@@ -3661,7 +3660,7 @@ static void MenuMBtest(WDC_DEVICE_HANDLE hDev, WDC_DEVICE_HANDLE hDev2)
 	ifr = 0;
 	printf(" DMA will run %d loop(s) per event\n", (ndma_loop + 1));
 	printf("\t%d loops with %d words and %d loop with %d words\n\n", ndma_loop, dwDMABufSize / 4, 1, dwDMABufSize / 4);
-	idebug = 1;
+	idebug = 0;
 
 
 	for (ijk = 0; ijk < nevent; ijk++)
